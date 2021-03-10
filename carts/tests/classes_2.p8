@@ -60,6 +60,11 @@ function _init()
     for i = 1, nPills do
         pills[i] = makePills(flr(rnd(120) + 1), flr(rnd(120) + 1))
     end
+
+    bullets = {}
+    for i = 1, nPills do
+        bullets[i] = makeBullets(player)
+    end
 end
 
 function _update()
@@ -71,12 +76,9 @@ function _update()
         player:checkCollision(pill)
     end
 
-    if btn(4) then
-        makeBullets(player)
-    end
-
-    for b in all(bullet) do
-       b:update()
+    local bullet
+    for bullet in all(bullets) do
+       bullet:update()
     end
 end
 
@@ -91,8 +93,9 @@ function _draw()
         pill:draw()
     end
 
-    for b in all(bullet) do
-        b:draw()
+    local bullet
+    for bullet in all(bullets) do
+        bullet:draw()
     end
 end
 
@@ -123,18 +126,23 @@ function makeBullets(object)
     local bullet = {
         x = object.x,
         y = object.y,
-        dx = 0,
-        dy = -4,
-        life = 60,
-        draw = function(self)
-            pset(self.x, self.y, 10)
-        end,
+        dx = 1,
+        dy = 1,
+        life = 10,
         update = function(self)
-            self.x += self.dx
-            self.y += self.dy
-            self.life -= 1
+            if btnp(4, 0) then
+                self.x += self.dx
+                self.y += self.dy
+                self.life -= 1
+            end
+
             if self.life < 0 then
                 del(bullet, self)
+            end
+        end,
+        draw = function(self)
+            if btnp(4, 0) then
+                pset(self.x, self.y, 12)
             end
         end
     }
