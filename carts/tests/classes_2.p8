@@ -5,103 +5,155 @@ __lua__
 
 -- variables
 --  player
-local debug = false
+local debug = true
 local pills
+local bullets
 local score
+local player
 
 
 -- game loop
 function _init()
-	score = 0
-	nPills = 5
-	player = {
-		x = 64,
-		y = 64,
-		dx = 1,
-		dy = 1,
-		spr = 1,
-		width = 8,
-		height = 8,
-		isVertAlign = false,
-		isHorizAlign = false,
-		update = function(self)
-		    if btn(0) then
-		        self.x -=self.dx
-		        self.spr = 4 + rnd(2)
-		    end
-		    if btn(1) then
-		        self.x +=self.dx
-		        self.spr = 4 + rnd(2)
-		    end
-		    if btn(2) then
-		        self.y -=self.dy
-		        self.spr = 6 + rnd(3)
-		    end
-		    if btn(3) then
-		        self.y +=self.dy
-		        self.spr = 1 + rnd(3)
-		    end
-		end,
-		draw = function(self)
-			spr(self.spr, self.x, self.y)
-			if (debug) then rect(self.x - 1, self.y - 1, self.x + self.width, self.y + self.height, 8) end
-		end,
-		checkCollision = function(self, pill)
-			if self.x < pill.x + 8 and self.x + 8 > pill.x and self.y < pill.y + 8 and self.y + 8 > pill.y and not pill.isCollected then
-				pill.isCollected = true
-				score += 1
-			end
-		end
-	}
+    score = 0
+    nPills = 5
+    player = {
+        x = 64,
+        y = 64,
+        dx = 1,
+        dy = 1,
+        spr = 1,
+        width = 8,
+        height = 8,
+        isVertAlign = false,
+        isHorizAlign = false,
+        update = function(self)
+            if btn(0) then
+                self.x -=self.dx
+                self.spr = 4 + rnd(2)
+            end
+            if btn(1) then
+                self.x +=self.dx
+                self.spr = 4 + rnd(2)
+            end
+            if btn(2) then
+                self.y -=self.dy
+                self.spr = 6 + rnd(3)
+            end
+            if btn(3) then
+                self.y +=self.dy
+                self.spr = 1 + rnd(3)
+            end
+        end,
+        draw = function(self)
+            spr(self.spr, self.x, self.y)
+            if (debug) then rect(self.x - 1, self.y - 1, self.x + self.width, self.y + self.height, 8) end
+        end,
+        checkCollision = function(self, pill)
+            if boundingBoxesOverlapping(self, pill) and not pill.isCollected then
+                pill.isCollected = true
+                score += 1
+            end
+        end
+    }
 
-
-	pills = {}
-	for i = 1, nPills do
-		pills[i] = makePills(flr(rnd(120) + 1), flr(rnd(120) + 1))
-	end
+    pills = {}
+    for i = 1, nPills do
+        pills[i] = makePills(flr(rnd(120) + 1), flr(rnd(120) + 1))
+    end
 end
 
 function _update()
-	player:update()
+    player:update()
 
-	local pill
-	for pill in all(pills) do
-		pill:update()
-		player:checkCollision(pill)
-	end
+    local pill
+    for pill in all(pills) do
+        pill:update()
+        player:checkCollision(pill)
+    end
+
+    if btn(4) then
+        makeBullets(player)
+    end
+
+    for b in all(bullet) do
+       b:update()
+    end
 end
 
 
 function _draw()
-	cls()
-	print("score: "..score, 5, 5, 7)
-	player:draw()
+    cls()
+    print("score: "..score, 5, 5, 7)
+    player:draw()
 
-	local pill
-	for pill in all(pills) do
-		pill:draw()
-	end
+    local pill
+    for pill in all(pills) do
+        pill:draw()
+    end
+
+    for b in all(bullet) do
+        b:draw()
+    end
 end
 
 function makePills(x, y)
-	local pill = {
-		x = x,
-		y = y,
-		isCollected = false,
-		update = function(self)
-		end,
-		draw = function(self)
-			if not self.isCollected then
-				spr(48, self.x, self.y)
+    local pill = {
+        x = x,
+        y = y,
+        width = 7,
+        height = 7,
+        isCollected = false,
+        update = function(self)
+        end,
+        draw = function(self)
+            if not self.isCollected then
+                spr(48, self.x, self.y)
 
-				if (debug) then
-					rect(self.x, self.y, self.x + 8, self.y + 8, 10)
-				end
-			end
-		end
-	}
+                if (debug) then
+                    rect(self.x, self.y, self.x + self.width, self.y + self.height, 10)
+                end
+            end
+        end
+    }
 
-	return pill
+    return pill
+end
+
+function makeBullets(object)
+    local bullet = {
+        x = object.x,
+        y = object.y,
+        dx = 0,
+        dy = -4,
+        life = 60,
+        draw = function(self)
+            pset(self.x, self.y, 10)
+        end,
+        update = function(self)
+            self.x += self.dx
+            self.y += self.dy
+            self.life -= 1
+            if self.life < 0 then
+                del(bullet, self)
+            end
+        end
+    }
+
+    return bullet
+end
+
+
+-- hit detection methods
+function linesOverlapping(min1,max1,min2,max2)
+    return max1>min2 and max2>min1
+end
+
+function rectsOverlapping(left1,top1,right1,bottom1,left2,top2,right2,bottom2)
+    return linesOverlapping(left1,right1,left2,right2) and linesOverlapping(top1,bottom1,top2,bottom2)
+end
+
+function boundingBoxesOverlapping(obj1,obj2)
+    return rectsOverlapping(obj1.x,obj1.y,obj1.x+obj1.width,obj1.y+obj1.height,obj2.x,obj2.y,obj2.x+obj2.width,obj2.y+obj2.height)
 end
 
 
